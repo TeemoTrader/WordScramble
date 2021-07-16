@@ -8,22 +8,21 @@
 import SwiftUI
 
 struct ContentView: View {
-    
+    @State var usedWords = [String]()
     @State var wordsRemaining = 5
     @State var timeRemaining = 5
-    @State var highScore = 0
-    
-    let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
-    
-    @State private var usedWords = [String]()
+    @State var score = 0
     @State private var rootWord = ""
     @State private var newWord = ""
-    
     @State private var errorTitle = ""
     @State private var errorMessage = ""
     @State private var showingError = false
+    @State var highScore = UserDefaults.standard.integer(forKey: "highScore")
     
-    @State private var score = 0
+    @State private var showingSheet = false
+    
+    let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
+    
     
     var body: some View {
         NavigationView {
@@ -47,30 +46,31 @@ struct ContentView: View {
                                                 timeRemaining += 5
                                                 wordsRemaining -= 1
                                             } else {
-                                                timeRemaining += 5
-                                                wordsRemaining += 5
+                                                self.showingSheet = true
                                                 usedWords = [""]
                                                 if score > highScore {
-                                                    highScore = score
-                                                    score = 0
-                                                } else {
+                                                    self.highScore = score
                                                     score = 0
                                                 }
+                                                
+                                                else {
+                                                    score = 0
+                                                }
+                                                
                                             }
+                                            
                                             
                                         }
                                         
                                     } )
-                    
+                        .sheet(isPresented: $showingSheet) { ScoreView() }
                     Text(rootWord)
                         .fontWeight(.bold)
                         .font(.system(size: 60))
                     TextField("Enter your word", text: $newWord, onCommit: addNewWord)
                         .textFieldStyle(RoundedBorderTextFieldStyle()).autocapitalization(.none)
-                        .padding()
-                    
                     ZStack {
-                    List(usedWords, id: \.self) {
+                        List(usedWords, id: \.self) {
                         Image(systemName: "\($0.count).circle").foregroundColor(.blue).imageScale(.large)
                         Text($0)
                             .font(.system(size: 30))
@@ -96,6 +96,20 @@ struct ContentView: View {
             
         }
     }
+    
+    func startGame() {
+        if let startWordsURL = Bundle.main.url(forResource: "start", withExtension: "txt") {
+            if let startWords = try?
+                String(contentsOf: startWordsURL) {
+                let allWords = startWords.components(separatedBy: "\n")
+                rootWord = allWords.randomElement()
+                    ?? "silkworm"
+                return
+            }
+            
+        }
+        fatalError("Could not load start.txt from bundle.")
+    }
     func addNewWord() {
         let answer = newWord.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
         
@@ -117,19 +131,6 @@ struct ContentView: View {
         usedWords.insert(answer, at: 0)
         newWord = ""
         score += answer.count
-    }
-    func startGame() {
-        if let startWordsURL = Bundle.main.url(forResource: "start", withExtension: "txt") {
-            if let startWords = try?
-                String(contentsOf: startWordsURL) {
-                let allWords = startWords.components(separatedBy: "\n")
-                rootWord = allWords.randomElement()
-                    ?? "silkworm"
-                return
-            }
-            
-        }
-        fatalError("Could not load start.txt from bundle.")
     }
     func isOriginal(word: String) -> Bool {
         !usedWords.contains(word)
@@ -157,6 +158,8 @@ struct ContentView: View {
         showingError = true
     }
 }
+
+
 
 struct ContentView_Previews: PreviewProvider {
     static var previews: some View {
